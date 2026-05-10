@@ -1,0 +1,48 @@
+-- Versión compatible con Xeno (Sin Require)
+local S, R, T, A
+
+local function GetLogic()
+    local ok, reg = pcall(getreg)
+    if ok then
+        for _, v in pairs(reg) do
+            if type(v) == "table" then
+                if v.SessionState then S = v.SessionState end
+                if v.AcceptInvite then R = v end
+                if v.Enabled and type(v.Enabled) == "table" then T = v end
+                if v.ActiveNegotiation then A = v.ActiveNegotiation end
+            end
+        end
+    end
+end
+
+local function doAccept()
+    if not S or not R then GetLogic() return end
+    
+    local enabled = true
+    pcall(function() if T then enabled = T.Enabled:Get() end end)
+    
+    local active = false
+    pcall(function() if A and A.Data then active = A.Data.player1 ~= nil end end)
+    
+    if not enabled or active then return end
+
+    local inc
+    pcall(function() inc = S:TryIndex({"incomingTradeRequests"}) end)
+    if type(inc) == "table" then
+        for _, p in pairs(inc) do
+            if p then
+                R.AcceptInvite:FireServer(p)
+                warn("Auto-Accept: Trade aceptado de " .. tostring(p.Name))
+            end
+        end
+    end
+end
+
+-- Bucle de ejecución
+task.spawn(function()
+    print("Sistema Auto-Accept iniciado (Bypass Mode)")
+    while true do
+        pcall(doAccept)
+        task.wait(1.5)
+    end
+end)
