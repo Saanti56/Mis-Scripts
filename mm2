@@ -7,22 +7,27 @@ local Window = Rayfield:CreateWindow({
    ConfigurationSaving = { Enabled = true, FolderName = "MM2 HUB", FileName = "Config" }
 })
 
--- Variables Globales e Inicialización
+-- Variables Globales
 _G.FarmSpeed = 26
 _G.AutoCoin = false
+_G.ESP = false
+_G.Noclip = false
+local AimLockConnection
+local NoclipConnection -- Corrección: Variable definida para evitar errores de referencia
 
+-- Servicios
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService") -- Añadido (Faltaba)
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService") -- Corrección: Servicio faltante
 local lp = Players.LocalPlayer
-local NoclipConnection
 
--- FUNCIÓN DE BÚSQUEDA AGRESIVA DE MONEDAS (Integrada correctamente)
+-- Función de búsqueda de monedas
 local function getClosestCoin()
     local closestCoin = nil
     local shortestDistance = math.huge
-    local character = lp.Character
-    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
 
     if hrp then
         for _, obj in pairs(workspace:GetDescendants()) do
@@ -64,9 +69,12 @@ end
 local function GetClosestPlayer()
     local closestDist = math.huge
     local target = nil
+    local myHrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    if not myHrp then return nil end
+
     for _, v in pairs(Players:GetPlayers()) do
-        if v ~= lp and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid").Health > 0 then
-            local dist = (v.Character.HumanoidRootPart.Position - lp.Character.HumanoidRootPart.Position).Magnitude
+        if v ~= lp and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+            local dist = (v.Character.HumanoidRootPart.Position - myHrp.Position).Magnitude
             if dist < closestDist then
                 closestDist = dist
                 target = v
@@ -174,27 +182,54 @@ VisualsTab:CreateToggle({
 local CombatTab = Window:CreateTab("Combate", 4483362458)
 
 CombatTab:CreateToggle({
-   Name = "Silent Aim (Lanzar Cuchillo)",
+   Name = "God Mode (Anti-Knife)",
    CurrentValue = false,
-   Flag = "MurdererSilent",
+   Callback = function(Value)
+      _G.GodMode = Value
+      if _G.GodMode then
+          task.spawn(function()
+              while _G.GodMode do
+                  pcall(function()
+                      if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                          for _, v in pairs(lp.Character:GetChildren()) do
+                              if v:IsA("BasePart") then
+                                  v.CanTouch = false 
+                              end
+                          end
+                      end
+                  end)
+                  task.wait(0.1)
+              end
+          end)
+      else
+          if lp.Character then
+              for _, v in pairs(lp.Character:GetChildren()) do
+                  if v:IsA("BasePart") then v.CanTouch = true end
+              end
+          end
+      end
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Silent Aim (Throw)",
+   CurrentValue = false,
    Callback = function(Value)
       _G.SilentAimThrow = Value
-      local metatable = getrawmetatable(game)
-      setreadonly(metatable, false)
-      local oldNamecall = metatable.__namecall
-      
-      metatable.__namecall = newcclosure(function(self, ...)
-         local method = getnamecallmethod()
-         local args = {...}
-         
-         if _G.SilentAimThrow and method == "FireServer" and self.Name == "Throw" then
-            local target = GetClosestPlayer()
-            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-               args[1] = target.Character.HumanoidRootPart.Position
-               return self:FireServer(unpack(args))
-            end
-         end
-         return oldNamecall(self, unpack(args))
+      pcall(function()
+          local mt = getrawmetatable(game)
+          setreadonly(mt, false)
+          local old = mt.__namecall
+          mt.__namecall = newcclosure(function(self, ...)
+              local method = getnamecallmethod()
+              if _G.SilentAimThrow and method == "FireServer" and self.Name == "Throw" then
+                  local target = GetClosestPlayer()
+                  if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                      return old(self, target.Character.HumanoidRootPart.Position)
+                  end
+              end
+              return old(self, ...)
+          end)
       end)
    end,
 })
@@ -232,16 +267,24 @@ CombatTab:CreateToggle({
    Flag = "CFrameAim",
    Callback = function(Value)
       _G.SilentAimLock = Value
-      RunService.RenderStepped:Connect(function()
-         if _G.SilentAimLock and lp.Character and lp.Character:FindFirstChild("Gun") then
-            local murderer = GetMurderer()
-            if murderer and murderer:FindFirstChild("HumanoidRootPart") then
-               if game:GetService("UserInputService"):IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                  workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, murderer.HumanoidRootPart.Position)
-               end
+      
+      if _G.SilentAimLock then
+          AimLockConnection = RunService.RenderStepped:Connect(function()
+            if _G.SilentAimLock and lp.Character then
+                local hasGun = lp.Character:FindFirstChild("Gun") or lp.Backpack:FindFirstChild("Gun")
+                if hasGun then
+                   local murderer = GetMurderer()
+                   if murderer and murderer:FindFirstChild("HumanoidRootPart") then
+                      if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                         workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, murderer.HumanoidRootPart.Position)
+                      end
+                   end
+                end
             end
-         end
-      end)
+          end)
+      else
+          if AimLockConnection then AimLockConnection:Disconnect() end
+      end
    end,
 })
 
@@ -257,77 +300,70 @@ CombatTab:CreateButton({
    end,
 })
 
--- PESTAÑA AUTO-FARM (CORREGIDA E INTEGRADA)
+-- TAB AUTO-FARM
 local TabFarm = Window:CreateTab("Auto-Farm", 4483362458)
 
 TabFarm:CreateToggle({
-   Name = "Auto-Farm Universal",
+   Name = "Auto-Farm Monedas",
    CurrentValue = false,
    Callback = function(Value)
       _G.AutoCoin = Value
       task.spawn(function()
-         while _G.AutoCoin do
-            local target = getClosestCoin()
-            local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-            
-            if target and hrp then
-               local distance = (hrp.Position - target.Position).Magnitude
-               local duration = distance / _G.FarmSpeed
-               local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = target.CFrame})
-               
-               tween:Play()
-               tween.Completed:Wait()
-               task.wait(0.05)
-            else
-               task.wait(0.5)
-         end
-      end
-   end)
-end,
+          while _G.AutoCoin do
+             local target = getClosestCoin()
+             local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+             
+             if target and hrp and target.Parent then
+                local distance = (hrp.Position - target.Position).Magnitude
+                local duration = distance / _G.FarmSpeed
+                local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = target.CFrame})
+                
+                tween:Play()
+                tween.Completed:Wait()
+                task.wait(0.1)
+             else
+                task.wait(0.5)
+             end
+          end
+      end)
+   end,
 })
 
 TabFarm:CreateSlider({
    Name = "Velocidad de Farm",
-   Info = "25-28 es lo más seguro para evitar el error 267",
    Range = {10, 50},
    Increment = 1,
-   Suffix = "Studs/s",
    CurrentValue = 26,
-   Flag = "FarmSpeedSlider",
-   Callback = function(Value)
-      _G.FarmSpeed = Value
-   end,
+   Callback = function(Value) _G.FarmSpeed = Value end,
 })
 
 TabFarm:CreateToggle({
     Name = "Anti-AFK",
-    CurrentValue = false,
+    CurrentValue = true,
     Callback = function(Value)
         _G.AntiAFK = Value
         if _G.AntiAFK then
-            _G.AntiAFKConn = lp.Idled:Connect(function()
-                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                task.wait(1)
-                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            lp.Idled:Connect(function()
+                if _G.AntiAFK then
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new())
+                end
             end)
-            Rayfield:Notify({Title = "Sistema", Content = "Anti-AFK activo para sesiones largas.", Duration = 2})
-        else
-            if _G.AntiAFKConn then _G.AntiAFKConn:Disconnect() end
         end
     end,
 })
 
--- Pestaña Sistema
+-- TAB SISTEMA
 local TabSettings = Window:CreateTab("Sistema", 4483362458)
 TabSettings:CreateButton({
    Name = "Optimizar FPS",
    Callback = function()
       setfpscap(144)
       Rayfield:Notify({
-         Title = "FPS Ajustados",
-         Content = "Capacidad de frames subida a 144.",
-         Duration = 3,
-         Image = 4483362458,
+          Title = "FPS Ajustados",
+          Content = "Capacidad de frames subida a 144.",
+          Duration = 3,
+          Image = 4483362458,
       })
    end,
 })
