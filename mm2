@@ -86,25 +86,36 @@ MainTab:CreateToggle({
 local VisualsTab = Window:CreateTab("Visuales", 4483362458)
 
 VisualsTab:CreateToggle({
-   Name = "ESP Jugadores (Roles)",
+   Name = "ESP de Roles",
    CurrentValue = false,
    Callback = function(Value)
       _G.ESP = Value
+      if not Value then
+          -- Limpiar Highlights al desactivar
+          for _, v in pairs(Players:GetPlayers()) do
+              if v.Character and v.Character:FindFirstChild("Highlight") then
+                  v.Character.Highlight:Destroy()
+              end
+          end
+      end
+      
       task.spawn(function()
           while _G.ESP do
              for _, v in pairs(Players:GetPlayers()) do
                 if v ~= lp and v.Character then
                    local hi = v.Character:FindFirstChild("Highlight") or Instance.new("Highlight", v.Character)
+                   hi.Adornee = v.Character
+                   
                    if v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife") then
-                      hi.FillColor = Color3.fromRGB(255, 0, 0)
+                      hi.FillColor = Color3.fromRGB(255, 0, 0) -- Rojo Asesino
                    elseif v.Backpack:FindFirstChild("Gun") or v.Character:FindFirstChild("Gun") then
-                      hi.FillColor = Color3.fromRGB(0, 0, 255)
+                      hi.FillColor = Color3.fromRGB(0, 0, 255) -- Azul Sheriff
                    else
-                      hi.FillColor = Color3.fromRGB(0, 255, 0)
+                      hi.FillColor = Color3.fromRGB(0, 255, 0) -- Verde Inocente
                    end
                 end
              end
-             task.wait(1)
+             task.wait(0.5)
           end
       end)
    end,
@@ -251,16 +262,13 @@ FarmTab:CreateToggle({
         _G.AntiAFK = Value
         if _G.AntiAFK then
             _G.AntiAFKConn = lp.Idled:Connect(function()
-                if _G.AntiAFK then
-                    VirtualUser:CaptureController()
-                    VirtualUser:ClickButton2(Vector2.new(0,0))
-                    print("Anti-AFK activado.")
-                end
+                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
             end)
-            Rayfield:Notify({Title = "Sistema", Content = "Anti-AFK Activado", Duration = 2})
+            Rayfield:Notify({Title = "Sistema", Content = "Anti-AFK activo para sesiones largas.", Duration = 2})
         else
             if _G.AntiAFKConn then _G.AntiAFKConn:Disconnect() end
-            Rayfield:Notify({Title = "Sistema", Content = "Anti-AFK Desactivado", Duration = 2})
         end
     end,
 })
