@@ -299,6 +299,24 @@ TabFarm:CreateSlider({
    end,
 })
 
+TabFarm:CreateToggle({
+    Name = "Anti-AFK",
+    CurrentValue = false,
+    Callback = function(Value)
+        _G.AntiAFK = Value
+        if _G.AntiAFK then
+            _G.AntiAFKConn = lp.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            end)
+            Rayfield:Notify({Title = "Sistema", Content = "Anti-AFK activo para sesiones largas.", Duration = 2})
+        else
+            if _G.AntiAFKConn then _G.AntiAFKConn:Disconnect() end
+        end
+    end,
+})
+
 -- Pestaña Sistema
 local TabSettings = Window:CreateTab("Sistema", 4483362458)
 TabSettings:CreateButton({
