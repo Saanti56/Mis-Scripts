@@ -7,11 +7,38 @@ local Window = Rayfield:CreateWindow({
    ConfigurationSaving = { Enabled = true, FolderName = "MM2 HUB", FileName = "Config" }
 })
 
--- Variables
+-- Variables Globales e Inicialización
+_G.FarmSpeed = 26
+_G.AutoCoin = false
+
 local Players = game:GetService("Players")
-local lp = Players.LocalPlayer
+local TweenService = game:GetService("TweenService") -- Añadido (Faltaba)
 local RunService = game:GetService("RunService")
+local lp = Players.LocalPlayer
 local NoclipConnection
+
+-- FUNCIÓN DE BÚSQUEDA AGRESIVA DE MONEDAS (Integrada correctamente)
+local function getClosestCoin()
+    local closestCoin = nil
+    local shortestDistance = math.huge
+    local character = lp.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+
+    if hrp then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:find("Coin") or obj.Name == "C") and obj:IsA("BasePart") then
+                if obj:FindFirstChild("TouchInterest") then
+                    local distance = (hrp.Position - obj.Position).Magnitude
+                    if distance < shortestDistance and distance < 300 then
+                        shortestDistance = distance
+                        closestCoin = obj
+                    end
+                end
+            end
+        end
+    end
+    return closestCoin
+end
 
 -- Función para buscar la pistola
 local function GetDroppedGun()
@@ -23,7 +50,7 @@ local function GetDroppedGun()
     return nil
 end
 
--- Función para obtener al asesino (Solución al error anterior)
+-- Función para obtener al asesino
 local function GetMurderer()
     for _, v in pairs(Players:GetPlayers()) do
         if v.Character and (v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife")) then
@@ -33,7 +60,7 @@ local function GetMurderer()
     return nil
 end
 
--- Función para obtener el objetivo más cercano
+-- Función para obtener el objetivo más cercano (Silent Aim)
 local function GetClosestPlayer()
     local closestDist = math.huge
     local target = nil
@@ -91,7 +118,6 @@ VisualsTab:CreateToggle({
    Callback = function(Value)
       _G.ESP = Value
       if not Value then
-          -- Limpiar Highlights al desactivar
           for _, v in pairs(Players:GetPlayers()) do
               if v.Character and v.Character:FindFirstChild("Highlight") then
                   v.Character.Highlight:Destroy()
@@ -107,11 +133,11 @@ VisualsTab:CreateToggle({
                    hi.Adornee = v.Character
                    
                    if v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife") then
-                      hi.FillColor = Color3.fromRGB(255, 0, 0) -- Rojo Asesino
+                      hi.FillColor = Color3.fromRGB(255, 0, 0)
                    elseif v.Backpack:FindFirstChild("Gun") or v.Character:FindFirstChild("Gun") then
-                      hi.FillColor = Color3.fromRGB(0, 0, 255) -- Azul Sheriff
+                      hi.FillColor = Color3.fromRGB(0, 0, 255)
                    else
-                      hi.FillColor = Color3.fromRGB(0, 255, 0) -- Verde Inocente
+                      hi.FillColor = Color3.fromRGB(0, 255, 0)
                    end
                 end
              end
@@ -231,59 +257,59 @@ CombatTab:CreateButton({
    end,
 })
 
-local FarmTab = Window:CreateTab("Farm & Utilidad", 4483362458)
+-- PESTAÑA AUTO-FARM (CORREGIDA E INTEGRADA)
+local TabFarm = Window:CreateTab("Auto-Farm", 4483362458)
 
-FarmTab:CreateToggle({
-    Name = "Auto-Farm Monedas",
-    CurrentValue = false,
-    Callback = function(Value)
-        _G.AutoFarm = Value
-        task.spawn(function()
-            while _G.AutoFarm do
-                task.wait(0.1)
-                if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-                    for _, v in pairs(workspace:GetDescendants()) do
-                        if (v.Name == "Coin" or v.Name == "CoinContainer") and v:IsA("BasePart") then
-                            lp.Character.HumanoidRootPart.CFrame = v.CFrame
-                            task.wait(0.2)
-                        end
-                        if not _G.AutoFarm then break end
-                    end
-                end
-            end
-        end)
-    end,
-})
-
-FarmTab:CreateToggle({
-    Name = "Anti-AFK",
-    CurrentValue = false,
-    Callback = function(Value)
-        _G.AntiAFK = Value
-        if _G.AntiAFK then
-            _G.AntiAFKConn = lp.Idled:Connect(function()
-                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                task.wait(1)
-                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-            end)
-            Rayfield:Notify({Title = "Sistema", Content = "Anti-AFK activo para sesiones largas.", Duration = 2})
-        else
-            if _G.AntiAFKConn then _G.AntiAFKConn:Disconnect() end
-        end
-    end,
-})
-
--- TAB: SISTEMA
-local SysTab = Window:CreateTab("Sistema", 4483362458)
-
-SysTab:CreateButton({
-   Name = "FPS Boost",
-   Callback = function()
-      for _, v in pairs(game:GetDescendants()) do
-         if v:IsA("Texture") or v:IsA("Decal") then v:Destroy() end
+TabFarm:CreateToggle({
+   Name = "Auto-Farm Universal",
+   CurrentValue = false,
+   Callback = function(Value)
+      _G.AutoCoin = Value
+      task.spawn(function()
+         while _G.AutoCoin do
+            local target = getClosestCoin()
+            local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+            
+            if target and hrp then
+               local distance = (hrp.Position - target.Position).Magnitude
+               local duration = distance / _G.FarmSpeed
+               local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = target.CFrame})
+               
+               tween:Play()
+               tween.Completed:Wait()
+               task.wait(0.05)
+            else
+               task.wait(0.5)
+         end
       end
+   end)
+end,
+})
+
+TabFarm:CreateSlider({
+   Name = "Velocidad de Farm",
+   Info = "25-28 es lo más seguro para evitar el error 267",
+   Range = {10, 50},
+   Increment = 1,
+   Suffix = "Studs/s",
+   CurrentValue = 26,
+   Flag = "FarmSpeedSlider",
+   Callback = function(Value)
+      _G.FarmSpeed = Value
    end,
 })
 
-
-Rayfield:LoadConfiguration()
+-- Pestaña Sistema
+local TabSettings = Window:CreateTab("Sistema", 4483362458)
+TabSettings:CreateButton({
+   Name = "Optimizar FPS",
+   Callback = function()
+      setfpscap(144)
+      Rayfield:Notify({
+         Title = "FPS Ajustados",
+         Content = "Capacidad de frames subida a 144.",
+         Duration = 3,
+         Image = 4483362458,
+      })
+   end,
+})
