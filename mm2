@@ -220,6 +220,51 @@ CombatTab:CreateButton({
    end,
 })
 
+local FarmTab = Window:CreateTab("Farm & Utilidad", 4483362458)
+
+FarmTab:CreateToggle({
+    Name = "Auto-Farm Monedas",
+    CurrentValue = false,
+    Callback = function(Value)
+        _G.AutoFarm = Value
+        task.spawn(function()
+            while _G.AutoFarm do
+                task.wait(0.1)
+                if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+                    for _, v in pairs(workspace:GetDescendants()) do
+                        if (v.Name == "Coin" or v.Name == "CoinContainer") and v:IsA("BasePart") then
+                            lp.Character.HumanoidRootPart.CFrame = v.CFrame
+                            task.wait(0.2)
+                        end
+                        if not _G.AutoFarm then break end
+                    end
+                end
+            end
+        end)
+    end,
+})
+
+FarmTab:CreateToggle({
+    Name = "Anti-AFK",
+    CurrentValue = false,
+    Callback = function(Value)
+        _G.AntiAFK = Value
+        if _G.AntiAFK then
+            _G.AntiAFKConn = lp.Idled:Connect(function()
+                if _G.AntiAFK then
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton2(Vector2.new(0,0))
+                    print("Anti-AFK activado.")
+                end
+            end)
+            Rayfield:Notify({Title = "Sistema", Content = "Anti-AFK Activado", Duration = 2})
+        else
+            if _G.AntiAFKConn then _G.AntiAFKConn:Disconnect() end
+            Rayfield:Notify({Title = "Sistema", Content = "Anti-AFK Desactivado", Duration = 2})
+        end
+    end,
+})
+
 -- TAB: SISTEMA
 local SysTab = Window:CreateTab("Sistema", 4483362458)
 
@@ -231,5 +276,6 @@ SysTab:CreateButton({
       end
    end,
 })
+
 
 Rayfield:LoadConfiguration()
