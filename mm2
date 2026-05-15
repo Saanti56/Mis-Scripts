@@ -1,10 +1,10 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "MM2 ROJO HUB",
-   LoadingTitle = "Welcome to ROJO HUB",
-   LoadingSubtitle = "by ROJO",
-   ConfigurationSaving = { Enabled = true, FolderName = "MM2 HUBe", FileName = "Config" }
+   Name = "MM2 HUB",
+   LoadingTitle = "Welcome to MM2 HUB",
+   LoadingSubtitle = "By Zick",
+   ConfigurationSaving = { Enabled = true, FolderName = "MM2 HUB", FileName = "Config" }
 })
 
 -- Variables
