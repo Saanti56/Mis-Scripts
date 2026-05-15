@@ -1,16 +1,17 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "MM2 ELITE HUB | Silent Aim Edition",
-   LoadingTitle = "Configurando Silent Aim...",
-   LoadingSubtitle = "by Gemini",
-   ConfigurationSaving = { Enabled = true, FolderName = "MM2_Elite", FileName = "Config" }
+   Name = "MM2 ROJO HUB",
+   LoadingTitle = "Welcome to ROJO HUB",
+   LoadingSubtitle = "by ROJO",
+   ConfigurationSaving = { Enabled = true, FolderName = "MM2 HUBe", FileName = "Config" }
 })
 
 -- Variables
 local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local NoclipConnection
 
 -- Función para buscar la pistola
 local function GetDroppedGun()
@@ -22,7 +23,17 @@ local function GetDroppedGun()
     return nil
 end
 
--- Función para obtener el objetivo más cercano (Silent Aim)
+-- Función para obtener al asesino (Solución al error anterior)
+local function GetMurderer()
+    for _, v in pairs(Players:GetPlayers()) do
+        if v.Character and (v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife")) then
+            return v.Character
+        end
+    end
+    return nil
+end
+
+-- Función para obtener el objetivo más cercano
 local function GetClosestPlayer()
     local closestDist = math.huge
     local target = nil
@@ -45,7 +56,11 @@ MainTab:CreateSlider({
    Range = {16, 250},
    Increment = 1,
    CurrentValue = 16,
-   Callback = function(v) if lp.Character then lp.Character.Humanoid.WalkSpeed = v end end,
+   Callback = function(v) 
+        if lp.Character and lp.Character:FindFirstChild("Humanoid") then 
+            lp.Character.Humanoid.WalkSpeed = v 
+        end 
+   end,
 })
 
 MainTab:CreateToggle({
@@ -53,13 +68,17 @@ MainTab:CreateToggle({
    CurrentValue = false,
    Callback = function(v)
       _G.Noclip = v
-      RunService.Stepped:Connect(function()
-         if _G.Noclip and lp.Character then
-            for _, part in pairs(lp.Character:GetDescendants()) do
-               if part:IsA("BasePart") then part.CanCollide = false end
-            end
-         end
-      end)
+      if _G.Noclip then
+          NoclipConnection = RunService.Stepped:Connect(function()
+              if _G.Noclip and lp.Character then
+                  for _, part in pairs(lp.Character:GetDescendants()) do
+                      if part:IsA("BasePart") then part.CanCollide = false end
+                  end
+              end
+          end)
+      else
+          if NoclipConnection then NoclipConnection:Disconnect() end
+      end
    end,
 })
 
@@ -71,51 +90,50 @@ VisualsTab:CreateToggle({
    CurrentValue = false,
    Callback = function(Value)
       _G.ESP = Value
-      spawn(function()
-         while _G.ESP do
-            for _, v in pairs(Players:GetPlayers()) do
-               if v ~= lp and v.Character then
-                  local hi = v.Character:FindFirstChild("Highlight") or Instance.new("Highlight", v.Character)
-                  if v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife") then
-                     hi.FillColor = Color3.fromRGB(255, 0, 0)
-                  elseif v.Backpack:FindFirstChild("Gun") or v.Character:FindFirstChild("Gun") then
-                     hi.FillColor = Color3.fromRGB(0, 0, 255)
-                  else
-                     hi.FillColor = Color3.fromRGB(0, 255, 0)
-                  end
-               end
-            end
-            task.wait(1)
-         end
+      task.spawn(function()
+          while _G.ESP do
+             for _, v in pairs(Players:GetPlayers()) do
+                if v ~= lp and v.Character then
+                   local hi = v.Character:FindFirstChild("Highlight") or Instance.new("Highlight", v.Character)
+                   if v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife") then
+                      hi.FillColor = Color3.fromRGB(255, 0, 0)
+                   elseif v.Backpack:FindFirstChild("Gun") or v.Character:FindFirstChild("Gun") then
+                      hi.FillColor = Color3.fromRGB(0, 0, 255)
+                   else
+                      hi.FillColor = Color3.fromRGB(0, 255, 0)
+                   end
+                end
+             end
+             task.wait(1)
+          end
       end)
    end,
 })
 
 VisualsTab:CreateToggle({
-   Name = "ESP Pistola (AZUL NEÓN)",
+   Name = "ESP DropGun",
    CurrentValue = false,
    Callback = function(Value)
       _G.GunESP = Value
-      spawn(function()
-         while _G.GunESP do
-            local gun = GetDroppedGun()
-            if gun then
-               if not gun:FindFirstChild("GunHighlight") then
-                  local hi = Instance.new("Highlight", gun)
-                  hi.Name = "GunHighlight"
-                  hi.FillColor = Color3.fromRGB(0, 150, 255)
-                  hi.OutlineColor = Color3.fromRGB(255, 255, 255)
-                  hi.Adornee = gun
-                  Rayfield:Notify({Title = "Pistola Suelta", Content = "Marcada en AZUL NEÓN.", Duration = 3})
-               end
-            end
-            task.wait(0.5)
-         end
+      task.spawn(function()
+          while _G.GunESP do
+             local gun = GetDroppedGun()
+             if gun then
+                if not gun:FindFirstChild("GunHighlight") then
+                   local hi = Instance.new("Highlight", gun)
+                   hi.Name = "GunHighlight"
+                   hi.FillColor = Color3.fromRGB(0, 150, 255)
+                   hi.OutlineColor = Color3.fromRGB(255, 255, 255)
+                   Rayfield:Notify({Title = "Pistola Suelta", Content = "Marcada en AZUL NEÓN.", Duration = 3})
+                end
+             end
+             task.wait(0.5)
+          end
       end)
    end,
 })
 
--- TAB: COMBATE (SILENT AIM & KILL AURA)
+-- TAB: COMBATE
 local CombatTab = Window:CreateTab("Combate", 4483362458)
 
 CombatTab:CreateToggle({
@@ -123,25 +141,23 @@ CombatTab:CreateToggle({
    CurrentValue = false,
    Flag = "MurdererSilent",
    Callback = function(Value)
-      _G.SilentAim = Value
-      spawn(function()
-         local metatable = getrawmetatable(game)
-         setreadonly(metatable, false)
-         local oldNamecall = metatable.__namecall
+      _G.SilentAimThrow = Value
+      local metatable = getrawmetatable(game)
+      setreadonly(metatable, false)
+      local oldNamecall = metatable.__namecall
+      
+      metatable.__namecall = newcclosure(function(self, ...)
+         local method = getnamecallmethod()
+         local args = {...}
          
-         metatable.__namecall = newcclosure(function(self, ...)
-            local method = getnamecallmethod()
-            local args = {...}
-            
-            if _G.SilentAim and method == "FireServer" and self.Name == "Throw" then
-               local target = GetClosestPlayer()
-               if target and target.Character then
-                  args[1] = target.Character.HumanoidRootPart.Position
-                  return self:FireServer(unpack(args))
-               end
+         if _G.SilentAimThrow and method == "FireServer" and self.Name == "Throw" then
+            local target = GetClosestPlayer()
+            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+               args[1] = target.Character.HumanoidRootPart.Position
+               return self:FireServer(unpack(args))
             end
-            return oldNamecall(self, unpack(args))
-         end)
+         end
+         return oldNamecall(self, unpack(args))
       end)
    end,
 })
@@ -151,18 +167,44 @@ CombatTab:CreateToggle({
    CurrentValue = false,
    Callback = function(v)
       _G.KillAura = v
-      while _G.KillAura do
-         task.wait(0.1)
-         local knife = lp.Character:FindFirstChild("Knife")
-         if knife and knife:IsA("Tool") then
-            for _, p in pairs(Players:GetPlayers()) do
-               if p ~= lp and p.Character and (lp.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude < 15 then
-                  firetouchinterest(p.Character.HumanoidRootPart, knife.Handle, 0)
-                  firetouchinterest(p.Character.HumanoidRootPart, knife.Handle, 1)
+      task.spawn(function()
+          while _G.KillAura do
+             task.wait(0.1)
+             if lp.Character then
+                 local knife = lp.Character:FindFirstChild("Knife") or lp.Backpack:FindFirstChild("Knife")
+                 if knife and lp.Character:FindFirstChild("HumanoidRootPart") then
+                    for _, p in pairs(Players:GetPlayers()) do
+                       if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                          local dist = (lp.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+                          if dist < 15 then
+                             firetouchinterest(p.Character.HumanoidRootPart, knife.Handle, 0)
+                             firetouchinterest(p.Character.HumanoidRootPart, knife.Handle, 1)
+                          end
+                       end
+                    end
+                 end
+             end
+          end
+      end)
+   end,
+})
+
+CombatTab:CreateToggle({
+   Name = "Silent Aim (CFrame Lock)",
+   CurrentValue = false,
+   Flag = "CFrameAim",
+   Callback = function(Value)
+      _G.SilentAimLock = Value
+      RunService.RenderStepped:Connect(function()
+         if _G.SilentAimLock and lp.Character and lp.Character:FindFirstChild("Gun") then
+            local murderer = GetMurderer()
+            if murderer and murderer:FindFirstChild("HumanoidRootPart") then
+               if game:GetService("UserInputService"):IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                  workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, murderer.HumanoidRootPart.Position)
                end
             end
          end
-      end
+      end)
    end,
 })
 
@@ -170,10 +212,10 @@ CombatTab:CreateButton({
    Name = "TP a Pistola",
    Callback = function()
       local gun = GetDroppedGun()
-      if gun then
+      if gun and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
          lp.Character.HumanoidRootPart.CFrame = gun.CFrame * CFrame.new(0, 2, 0)
       else
-         Rayfield:Notify({Title = "Aviso", Content = "Pistola no encontrada.", Duration = 2})
+         Rayfield:Notify({Title = "Aviso", Content = "Pistola no encontrada o personaje no cargado.", Duration = 2})
       end
    end,
 })
