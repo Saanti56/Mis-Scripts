@@ -4,4 +4,4 @@ _G["Script-SM_Config"] = {
     ["Min_Value"] = 10,
     ["Min_Ping"] = 125
 }
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Saanti56/Mis-Scripts/refs/heads/main/test2.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Saanti56/Mis-Scripts/refs/heads/main/Original.lua"))()
