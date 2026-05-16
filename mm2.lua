@@ -271,7 +271,7 @@ CombatTab:CreateToggle({
       if _G.SilentAimLock then
           AimLockConnection = RunService.RenderStepped:Connect(function()
             if _G.SilentAimLock and lp.Character then
-                local hasGun = lp.Character:FindFirstChild("Gun") or lp.Backpack:FindFirstChild("Gun")
+                local hasGun = lp.Character:FindFirstChild("Gun") -- Modificado: Solo detecta si está en el Character (en la mano)
                 if hasGun then
                    local murderer = GetMurderer()
                    if murderer and murderer:FindFirstChild("HumanoidRootPart") then
