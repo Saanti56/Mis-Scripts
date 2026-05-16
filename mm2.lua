@@ -275,7 +275,7 @@ CombatTab:CreateToggle({
                 if hasGun then
                    local murderer = GetMurderer()
                    if murderer and murderer:FindFirstChild("HumanoidRootPart") then
-                      if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                      if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
                          workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, murderer.HumanoidRootPart.Position)
                       end
                    end
