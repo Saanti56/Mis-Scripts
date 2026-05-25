@@ -13,25 +13,34 @@ _G.AutoCoin = false
 _G.ESP = false
 _G.Noclip = false
 local AimLockConnection
-local NoclipConnection -- Corrección: Variable definida para evitar errores de referencia
+local NoclipConnection
+local AntiAFKConnection -- Optimización: Guardar conexión para evitar duplicados
 
--- Servicios
+-- Servicios (Localizados para mayor velocidad)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
-local UserInputService = game:GetService("UserInputService") -- Corrección: Servicio faltante
+local UserInputService = game:GetService("UserInputService")
 local lp = Players.LocalPlayer
 
--- Función de búsqueda de monedas
+-- OPTIMIZACIÓN CRÍTICA: Buscar contenedores específicos en lugar de usar todo el Workspace
+local function getCoinContainer()
+    return workspace:FindFirstChild("Normal") or workspace:FindFirstChild("Map") or workspace
+end
+
+-- Función de búsqueda de monedas optimizada
 local function getClosestCoin()
     local closestCoin = nil
     local shortestDistance = math.huge
-    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    local character = lp.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
 
     if hrp then
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:find("Coin") or obj.Name == "C") and obj:IsA("BasePart") then
+        local container = getCoinContainer()
+        -- Buscamos solo en los descendientes directos del contenedor del mapa actual
+        for _, obj in pairs(container:GetDescendants()) do
+            if obj:IsA("BasePart") and (obj.Name == "Coin" or obj.Name == "C" or obj.Name:find("Coin")) then
                 if obj:FindFirstChild("TouchInterest") then
                     local distance = (hrp.Position - obj.Position).Magnitude
                     if distance < shortestDistance and distance < 300 then
@@ -45,9 +54,10 @@ local function getClosestCoin()
     return closestCoin
 end
 
--- Función para buscar la pistola
+-- Función para buscar la pistola optimizada (No usa GetDescendants en todo el workspace)
 local function GetDroppedGun()
-    for _, v in pairs(workspace:GetDescendants()) do
+    local container = getCoinContainer()
+    for _, v in pairs(container:GetDescendants()) do
         if v.Name == "GunDrop" and v:IsA("BasePart") then
             return v
         end
@@ -55,11 +65,14 @@ local function GetDroppedGun()
     return nil
 end
 
--- Función para obtener al asesino
+-- Función para obtener al asesino (Optimizada)
 local function GetMurderer()
     for _, v in pairs(Players:GetPlayers()) do
-        if v.Character and (v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife")) then
-            return v.Character
+        local char = v.Character
+        if char then
+            if char:FindFirstChild("Knife") or v.Backpack:FindFirstChild("Knife") then
+                return char
+            end
         end
     end
     return nil
@@ -69,15 +82,21 @@ end
 local function GetClosestPlayer()
     local closestDist = math.huge
     local target = nil
-    local myHrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+    local character = lp.Character
+    local myHrp = character and character:FindFirstChild("HumanoidRootPart")
     if not myHrp then return nil end
 
     for _, v in pairs(Players:GetPlayers()) do
-        if v ~= lp and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
-            local dist = (v.Character.HumanoidRootPart.Position - myHrp.Position).Magnitude
-            if dist < closestDist then
-                closestDist = dist
-                target = v
+        if v ~= lp then
+            local char = v.Character
+            if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                if char.Humanoid.Health > 0 then
+                    local dist = (char.HumanoidRootPart.Position - myHrp.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        target = v
+                    end
+                end
             end
         end
     end
@@ -103,16 +122,18 @@ MainTab:CreateToggle({
    CurrentValue = false,
    Callback = function(v)
       _G.Noclip = v
+      if NoclipConnection then NoclipConnection:Disconnect() end
+      
       if _G.Noclip then
           NoclipConnection = RunService.Stepped:Connect(function()
               if _G.Noclip and lp.Character then
-                  for _, part in pairs(lp.Character:GetDescendants()) do
+                  for _, part in pairs(lp.Character:GetChildren()) do -- Optimizada: GetChildren en vez de GetDescendants
                       if part:IsA("BasePart") then part.CanCollide = false end
                   end
+              else
+                  if NoclipConnection then NoclipConnection:Disconnect() end
               end
           end)
-      else
-          if NoclipConnection then NoclipConnection:Disconnect() end
       end
    end,
 })
@@ -120,25 +141,37 @@ MainTab:CreateToggle({
 -- TAB: VISUALES
 local VisualsTab = Window:CreateTab("Visuales", 4483362458)
 
+-- Función auxiliar para limpiar Highlights y evitar fugas de memoria
+local function ClearAllHighlights()
+    for _, v in pairs(Players:GetPlayers()) do
+        if v.Character and v.Character:FindFirstChild("HubHighlight") then
+            v.Character.HubHighlight:Destroy()
+        end
+    end
+end
+
 VisualsTab:CreateToggle({
    Name = "ESP de Roles",
    CurrentValue = false,
    Callback = function(Value)
       _G.ESP = Value
       if not Value then
-          for _, v in pairs(Players:GetPlayers()) do
-              if v.Character and v.Character:FindFirstChild("Highlight") then
-                  v.Character.Highlight:Destroy()
-              end
-          end
+          ClearAllHighlights()
+          return
       end
       
       task.spawn(function()
           while _G.ESP do
              for _, v in pairs(Players:GetPlayers()) do
+                if not _G.ESP then break end -- Freno de seguridad
                 if v ~= lp and v.Character then
-                   local hi = v.Character:FindFirstChild("Highlight") or Instance.new("Highlight", v.Character)
-                   hi.Adornee = v.Character
+                   local hi = v.Character:FindFirstChild("HubHighlight")
+                   if not hi then
+                       hi = Instance.new("Highlight")
+                       hi.Name = "HubHighlight"
+                       hi.Adornee = v.Character
+                       hi.Parent = v.Character
+                   end
                    
                    if v.Backpack:FindFirstChild("Knife") or v.Character:FindFirstChild("Knife") then
                       hi.FillColor = Color3.fromRGB(255, 0, 0)
@@ -149,8 +182,9 @@ VisualsTab:CreateToggle({
                    end
                 end
              end
-             task.wait(0.5)
+             task.wait(0.7) -- Subido a 0.7s para reducir consumo de CPU sin perder respuesta visual
           end
+          ClearAllHighlights()
       end)
    end,
 })
@@ -165,14 +199,16 @@ VisualsTab:CreateToggle({
              local gun = GetDroppedGun()
              if gun then
                 if not gun:FindFirstChild("GunHighlight") then
-                   local hi = Instance.new("Highlight", gun)
+                   local hi = Instance.new("Highlight")
                    hi.Name = "GunHighlight"
+                   hi.Adornee = gun
                    hi.FillColor = Color3.fromRGB(0, 150, 255)
                    hi.OutlineColor = Color3.fromRGB(255, 255, 255)
+                   hi.Parent = gun
                    Rayfield:Notify({Title = "Pistola Suelta", Content = "Marcada en AZUL NEÓN.", Duration = 3})
                 end
              end
-             task.wait(0.5)
+             task.wait(1) -- Aumentado a 1 segundo (la pistola no se mueve de lugar, no requiere refresco rápido)
           end
       end)
    end,
@@ -190,15 +226,15 @@ CombatTab:CreateToggle({
           task.spawn(function()
               while _G.GodMode do
                   pcall(function()
-                      if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                      if lp.Character then
                           for _, v in pairs(lp.Character:GetChildren()) do
-                              if v:IsA("BasePart") then
+                              if v:IsA("BasePart") and v.CanTouch then
                                   v.CanTouch = false 
                               end
                           end
                       end
                   end)
-                  task.wait(0.1)
+                  task.wait(0.3) -- Aumentado el delay; no hace falta spamearlo a 0.1s
               end
           end)
       else
@@ -216,21 +252,25 @@ CombatTab:CreateToggle({
    CurrentValue = false,
    Callback = function(Value)
       _G.SilentAimThrow = Value
-      pcall(function()
-          local mt = getrawmetatable(game)
-          setreadonly(mt, false)
-          local old = mt.__namecall
-          mt.__namecall = newcclosure(function(self, ...)
-              local method = getnamecallmethod()
-              if _G.SilentAimThrow and method == "FireServer" and self.Name == "Throw" then
-                  local target = GetClosestPlayer()
-                  if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-                      return old(self, target.Character.HumanoidRootPart.Position)
+      -- Evitamos duplicar hooks de la Metatable cada vez que se enciende/apaga
+      if not _G.MetatableHooked then
+          _G.MetatableHooked = true
+          pcall(function()
+              local mt = getrawmetatable(game)
+              setreadonly(mt, false)
+              local old = mt.__namecall
+              mt.__namecall = newcclosure(function(self, ...)
+                  local method = getnamecallmethod()
+                  if _G.SilentAimThrow and method == "FireServer" and self.Name == "Throw" then
+                      local target = GetClosestPlayer()
+                      if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                          return old(self, target.Character.HumanoidRootPart.Position)
+                      end
                   end
-              end
-              return old(self, ...)
+                  return old(self, ...)
+              end)
           end)
-      end)
+      end
    end,
 })
 
@@ -241,21 +281,25 @@ CombatTab:CreateToggle({
       _G.KillAura = v
       task.spawn(function()
           while _G.KillAura do
-             task.wait(0.1)
              if lp.Character then
                  local knife = lp.Character:FindFirstChild("Knife") or lp.Backpack:FindFirstChild("Knife")
-                 if knife and lp.Character:FindFirstChild("HumanoidRootPart") then
+                 local myHrp = lp.Character:FindFirstChild("HumanoidRootPart")
+                 if knife and myHrp then
                     for _, p in pairs(Players:GetPlayers()) do
-                       if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                          local dist = (lp.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
-                          if dist < 15 then
-                             firetouchinterest(p.Character.HumanoidRootPart, knife.Handle, 0)
-                             firetouchinterest(p.Character.HumanoidRootPart, knife.Handle, 1)
+                       if p ~= lp and p.Character then
+                          local pHrp = p.Character:FindFirstChild("HumanoidRootPart")
+                          if pHrp then
+                             local dist = (myHrp.Position - pHrp.Position).Magnitude
+                             if dist < 15 then
+                                 firetouchinterest(pHrp, knife.Handle, 0)
+                                 firetouchinterest(pHrp, knife.Handle, 1)
+                             end
                           end
                        end
                     end
                  end
              end
+             task.wait(0.15) -- Ligera optimización del delay
           end
       end)
    end,
@@ -267,12 +311,12 @@ CombatTab:CreateToggle({
    Flag = "CFrameAim",
    Callback = function(Value)
       _G.SilentAimLock = Value
+      if AimLockConnection then AimLockConnection:Disconnect() end
       
       if _G.SilentAimLock then
           AimLockConnection = RunService.RenderStepped:Connect(function()
             if _G.SilentAimLock and lp.Character then
-                local hasGun = lp.Character:FindFirstChild("Gun") -- Modificado: Solo detecta si está en el Character (en la mano)
-                if hasGun then
+                if lp.Character:FindFirstChild("Gun") then 
                    local murderer = GetMurderer()
                    if murderer and murderer:FindFirstChild("HumanoidRootPart") then
                       if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
@@ -280,10 +324,10 @@ CombatTab:CreateToggle({
                       end
                    end
                 end
+            else
+                if AimLockConnection then AimLockConnection:Disconnect() end
             end
           end)
-      else
-          if AimLockConnection then AimLockConnection:Disconnect() end
       end
    end,
 })
@@ -320,9 +364,9 @@ TabFarm:CreateToggle({
                 
                 tween:Play()
                 tween.Completed:Wait()
-                task.wait(0.1)
+                task.wait(0.05)
              else
-                task.wait(0.5)
+                task.wait(0.4)
              end
           end
       end)
@@ -342,11 +386,15 @@ TabFarm:CreateToggle({
     CurrentValue = true,
     Callback = function(Value)
         _G.AntiAFK = Value
+        if AntiAFKConnection then AntiAFKConnection:Disconnect() end -- Evita duplicar conexiones pesadas
+        
         if _G.AntiAFK then
-            lp.Idled:Connect(function()
+            AntiAFKConnection = lp.Idled:Connect(function()
                 if _G.AntiAFK then
                     VirtualUser:CaptureController()
                     VirtualUser:ClickButton2(Vector2.new())
+                else
+                    if AntiAFKConnection then AntiAFKConnection:Disconnect() end
                 end
             end)
         end
