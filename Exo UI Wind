@@ -33,6 +33,7 @@ end
 
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 local UserInputService = game:GetService("UserInputService")
+local UIToggleKey = Enum.KeyCode.RightControl
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -1640,6 +1641,17 @@ local Window = WindUI:CreateWindow({
     Resizable = true,
 })
 
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == UIToggleKey then
+        Window:Toggle()
+    end
+end)
+
+-- UI Toggle Key
+Window:SetToggleKey(Enum.KeyCode.G)
+
 local MainTab = Window:Tab({
     Title = "Main", Icon = "star"})
 local FlingTab = Window:Tab({
@@ -1652,6 +1664,29 @@ local MiscTab = Window:Tab({
     Title = "Misc", Icon = "star"})
 local KeybindsTab = Window:Tab({
     Title = "Keybinds", Icon = "star"})
+
+KeybindsTab:Section({
+    Title = "Keybind Settings"})
+
+KeybindsTab:Dropdown({
+    Title = "UI Toggle Key",
+    Options = {
+        "RightControl",
+        "LeftControl",
+        "RightShift",
+        "LeftShift",
+        "Insert",
+        "V",
+        "F",
+        "G",
+        "H"
+    },
+    Value = "RightControl",
+    Callback = function(option)
+        local selected = typeof(option) == "table" and option[1] or option
+        UIToggleKey = Enum.KeyCode[selected]
+    end
+})
 
 MainTab:Section({
     Title = "Role ESP"})
