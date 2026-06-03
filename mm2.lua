@@ -20,6 +20,13 @@ local AimLockConnection
 local NoclipConnection
 local AntiAFKConnection
 
+--// AUTOFARM VARIABLES
+local layAnim = Instance.new("Animation")
+layAnim.AnimationId = "rbxassetid://507766388"
+
+local layTrack
+local currentTween
+
 --// Window
 local Window = WindUI:CreateWindow({
     Title = "MM2 HUB",
@@ -167,6 +174,65 @@ local function ClearAllHighlights()
     end
 end
 
+--// ROUND ACTIVE
+local function IsRoundActive()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+            if plr.Character.Humanoid.Health > 0 then
+                if plr.Backpack:FindFirstChild("Knife")
+                or plr.Character:FindFirstChild("Knife")
+                or plr.Backpack:FindFirstChild("Gun")
+                or plr.Character:FindFirstChild("Gun") then
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+
+local function ResetCharacterPhysics()
+    if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+        local hum = lp.Character.Humanoid
+
+        if layTrack then
+            layTrack:Stop()
+        end
+
+        hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+
+        for _, part in pairs(lp.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+
+    if currentTween then
+        currentTween:Cancel()
+        currentTween = nil
+    end
+end
+
+RunService.Stepped:Connect(function()
+    if _G.AutoCoin
+    and IsRoundActive()
+    and lp.Character
+    and lp.Character:FindFirstChild("Humanoid") then
+
+        lp.Character.Humanoid:ChangeState(11)
+
+        for _, part in pairs(lp.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+                part.Velocity = Vector3.zero
+            end
+        end
+    end
+end)
+
 --// MOVIMIENTO
 MainTab:Section({
     Title = "Player"
@@ -241,12 +307,10 @@ VisualsTab:Toggle({
 
                         if v.Backpack:FindFirstChild("Knife")
                         or v.Character:FindFirstChild("Knife") then
-
                             hi.FillColor = Color3.fromRGB(255,0,0)
 
                         elseif v.Backpack:FindFirstChild("Gun")
                         or v.Character:FindFirstChild("Gun") then
-
                             hi.FillColor = Color3.fromRGB(0,0,255)
 
                         else
@@ -486,39 +550,86 @@ FarmTab:Toggle({
     Callback = function(Value)
         _G.AutoCoin = Value
 
+        if not Value then
+            ResetCharacterPhysics()
+            return
+        end
+
         task.spawn(function()
             while _G.AutoCoin do
-                local target = getClosestCoin()
+                task.wait(0.1)
+
+                if not IsRoundActive() then
+                    ResetCharacterPhysics()
+
+                    repeat
+                        task.wait(1)
+                    until IsRoundActive() or not _G.AutoCoin
+                end
 
                 local hrp = lp.Character
                     and lp.Character:FindFirstChild("HumanoidRootPart")
 
+                local hum = lp.Character
+                    and lp.Character:FindFirstChild("Humanoid")
+
+                local target = getClosestCoin()
+
+                if hum and (not layTrack or not layTrack.IsPlaying) then
+                    pcall(function()
+                        layTrack = hum:LoadAnimation(layAnim)
+                        layTrack.Looped = true
+                        layTrack:Play()
+                    end)
+
+                    hum:SetStateEnabled(
+                        Enum.HumanoidStateType.GettingUp,
+                        false
+                    )
+                end
+
                 if target and hrp and target.Parent then
+                    firetouchinterest(hrp, target, 0)
+
+                    local pos = target.Position - Vector3.new(0, 4.3, 0)
+
+                    if currentTween then
+                        currentTween:Cancel()
+                    end
+
                     local distance = (
-                        hrp.Position - target.Position
+                        hrp.Position - pos
                     ).Magnitude
 
-                    local duration = distance / _G.FarmSpeed
-
-                    local tween = TweenService:Create(
+                    currentTween = TweenService:Create(
                         hrp,
                         TweenInfo.new(
-                            duration,
+                            distance / _G.FarmSpeed,
                             Enum.EasingStyle.Linear
                         ),
                         {
-                            CFrame = target.CFrame
+                            CFrame = CFrame.new(pos)
                         }
                     )
 
-                    tween:Play()
-                    tween.Completed:Wait()
+                    currentTween:Play()
 
-                    task.wait(0.05)
-                else
-                    task.wait(0.4)
+                    repeat
+                        task.wait()
+                    until
+                        not target
+                        or not target.Parent
+                        or not _G.AutoCoin
+                        or not IsRoundActive()
+                        or (hrp.Position - pos).Magnitude < 1.5
+
+                    if target and target.Parent then
+                        firetouchinterest(hrp, target, 1)
+                    end
                 end
             end
+
+            ResetCharacterPhysics()
         end)
     end
 })
