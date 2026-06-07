@@ -258,20 +258,33 @@ MainTab:Toggle({
     Callback = function(v)
         _G.Noclip = v
 
+        -- Desconectar conexión anterior
         if NoclipConnection then
             NoclipConnection:Disconnect()
+            NoclipConnection = nil
         end
 
-        if _G.Noclip then
+        -- Activar noclip
+        if v then
             NoclipConnection = RunService.Stepped:Connect(function()
-                if _G.Noclip and lp.Character then
-                    for _, part in pairs(lp.Character:GetChildren()) do
+                if lp.Character then
+                    for _, part in pairs(lp.Character:GetDescendants()) do
                         if part:IsA("BasePart") then
                             part.CanCollide = false
                         end
                     end
                 end
             end)
+
+        -- Desactivar noclip instantáneamente
+        else
+            if lp.Character then
+                for _, part in pairs(lp.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+            end
         end
     end
 })
