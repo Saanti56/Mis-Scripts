@@ -1,0 +1,2 @@
+loadstring(game:HttpGet('https://raw.githubusercontent.com/Saanti56/Mis-Scripts/refs/heads/main/AntiAFK.txt'))()
+loadstring(game:HttpGet('https://raw.githubusercontent.com/Saanti56/Mis-Scripts/refs/heads/main/dwngrade'))()
